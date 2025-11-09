@@ -26,7 +26,7 @@
   "profile": {
     "dev": {
       "variables": {
-        "main.debug": "true",
+        "main.debug": "false",
         "main.mode": "dev"
       }
     },
