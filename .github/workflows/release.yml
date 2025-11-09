@@ -1,0 +1,138 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: aix
+            arch: ppc64
+          - os: android
+            arch: arm64
+          - os: android
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: freebsd
+            arch: arm64
+          - os: freebsd
+            arch: amd64
+          - os: netbsd
+            arch: arm64
+          - os: netbsd
+            arch: amd64
+          - os: openbsd
+            arch: arm64
+          - os: openbsd
+            arch: amd64
+          - os: linux
+            arch: arm
+          - os: linux
+            arch: arm64
+          - os: linux
+            arch: 386
+          - os: linux
+            arch: loong64
+          - os: linux
+            arch: mips64le
+          - os: linux
+            arch: ppc64le
+          - os: linux
+            arch: riscv64
+          - os: linux
+            arch: s390x
+          - os: linux
+            arch: amd64
+          - os: sunos
+            arch: amd64
+          - os: windows
+            arch: 386
+          - os: windows
+            arch: arm64
+          - os: windows
+            arch: amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Extract Manifest
+        run: |
+          echo "PKG_NAME=$(jq -r '.name' manifest.json)" >> $GITHUB_ENV
+          echo "PKG_VERSION=$(jq -r '.version' manifest.json)" >> $GITHUB_ENV
+          echo "PKG_DESCRIPTION=$(jq -r '.description' manifest.json)" >> $GITHUB_ENV
+        shell: bash
+      - name: Build
+        run: |
+          export GOOS=${{ matrix.os }}
+          export GOARCH=${{ matrix.arch }}
+
+          OUTPUT="build/pulsar_producer_${{ matrix.os }}_${{ matrix.arch }}"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            OUTPUT="${OUTPUT}.exe"
+          fi
+
+          cd ./src
+
+          go build -ldflags "\
+            -w -s \
+            -X 'main.name=${PKG_NAME}' \
+            -X 'main.version=${PKG_VERSION}' \
+            -X 'main.description=${PKG_DESCRIPTION}' \
+            -X 'main.debug=false' \
+            -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')' \
+            " -o "../$OUTPUT"
+        shell: bash
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: producer_pulsar_${{ matrix.os }}-${{ matrix.arch }}
+          path: build/*
+
+  create-release:
+    # This job runs only after ALL build jobs in the matrix are successful
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: Multi-architecture release for ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts # Download all artifacts into this directory
+
+      - name: Upload Release Assets
+        # This step uploads each individual artifact to the newly created GitHub release
+        run: |
+          for file in artifacts/*/myapp-*; do
+            ASSET_NAME=$(basename "$file")
+            curl -L \
+              -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              "$(jq -r '.upload_url' ${{ steps.create_release.outputs.id }} | sed -e 's/{?name,label}//')?name=$ASSET_NAME" \
+              --data-binary "@$file"
+          done
+        env:
+          # Pass the release ID to the script so it knows where to upload
+          RELEASE_ID: ${{ steps.create_release.outputs.id }}

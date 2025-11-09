@@ -1,0 +1,14 @@
+.*
+!.github
+!.gitignore
+go/*.work
+go/bin
+node_modules/
+dist
+**/*.jwt
+bin
+**/bin
+node/test.js
+build.bat
+build.mjs
+build.sh

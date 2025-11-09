@@ -1,0 +1,50 @@
+{
+  "name": "pulsar-publish",
+  "version": "0.0.2",
+  "description": "Publish messages to Apache Pulsar.",
+  "license": "MIT",
+  "author": "coreybutler",
+  "build": "cmd/main.go",
+  "output": "../bin",
+  "update": true,
+  "upx": false,
+  "tiny": false,
+  "variables": {
+    "main.name": "manifest.name",
+    "main.version": "manifest.version",
+    "main.description": "manifest.description"
+  },
+  "minify": true,
+  "livereload": [],
+  "ldflags": [
+    "-w",
+    "-s"
+  ],
+  "default_profiles": [
+    "dev"
+  ],
+  "profile": {
+    "dev": {
+      "variables": {
+        "main.debug": "true",
+        "main.mode": "dev"
+      }
+    },
+    "release": {
+      "variables": {
+        "main.debug": "false",
+        "main.mode": "release"
+      }
+    },
+    "linux:arm64": {
+      "variables": {
+        "main.debug": "false",
+        "main.mode": "release"
+      },
+      "env": {
+        "GOOS": "linux",
+        "GOARCH": "arm64"
+      }
+    }
+  }
+}
