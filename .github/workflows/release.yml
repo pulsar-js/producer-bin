@@ -83,6 +83,8 @@ jobs:
             OUTPUT="${OUTPUT}.exe"
           fi
 
+          go mod tidy
+
           go build -ldflags "\
             -w -s \
             -X 'main.name=${PKG_NAME}' \
