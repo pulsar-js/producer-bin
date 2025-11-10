@@ -83,17 +83,39 @@ jobs:
       - name: Build all targets
         run: |
           cd src
+
           go mod download
+
           targets=(
             "windows amd64"
             "linux amd64"
             "linux arm64"
           )
+
+          mkdir -p ../build
+
           for entry in "${targets[@]}"; do
             set -- $entry
-            GOOS=$1 GOARCH=$2 \
-              go build -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
-              -o "../build/pulsar_producer_${1}_${2}${1==windows && echo .exe}" cmd/main.go
+            os="$1"
+            arch="$2"
+
+            outdir="../build/${os}_${arch}"
+            mkdir -p "${outdir}"
+
+            bin="pulsar_producer"
+            if [ "${os}" = "windows" ]; then
+              bin="${bin}.exe"
+            fi
+
+            GOOS="${os}" GOARCH="${arch}" \
+              go build -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")'" \
+              -o "${outdir}/${bin}" cmd/main.go
+
+            if [ "${os}" = "windows" ]; then
+              (cd "${outdir}" && zip -rq "../pulsar_producer_${os}_${arch}.zip" "${bin}")
+            else
+              tar -C "${outdir}" -czf "../pulsar_producer_${os}_${arch}.tar.gz" "${bin}"
+            fi
           done
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
