@@ -106,6 +106,8 @@ jobs:
     # This job runs only after ALL build jobs in the matrix are successful
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Create Release
         id: create_release
@@ -125,17 +127,8 @@ jobs:
           path: artifacts # Download all artifacts into this directory
 
       - name: Upload Release Assets
-        # This step uploads each individual artifact to the newly created GitHub release
-        run: |
-          for file in artifacts/*/myapp-*; do
-            ASSET_NAME=$(basename "$file")
-            curl -L \
-              -X POST \
-              -H "Authorization: token ${{ secrets.GH_ACCESS_TOKEN }}" \
-              -H "Content-Type: application/octet-stream" \
-              "$(jq -r '.upload_url' ${{ steps.create_release.outputs.id }} | sed -e 's/{?name,label}//')?name=$ASSET_NAME" \
-              --data-binary "@$file"
-          done
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/producer_pulsar_*
         env:
-          # Pass the release ID to the script so it knows where to upload
-          RELEASE_ID: ${{ steps.create_release.outputs.id }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
