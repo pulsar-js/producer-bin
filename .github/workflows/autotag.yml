@@ -46,7 +46,7 @@ jobs:
         if: env.tag_exists == 'false'
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
           script: |
             const tag = `v${process.env.manifest_version}`;
             await github.rest.git.createRef({
