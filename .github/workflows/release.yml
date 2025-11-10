@@ -88,8 +88,15 @@ jobs:
 
           targets=(
             "windows amd64"
+            "windows arm64"
+            "windows 386"
+            "darwin amd64"
+            "darwin arm64"
             "linux amd64"
             "linux arm64"
+            "linux 386"
+            "linux s390x"
+            "linux ppc64le"
           )
 
           mkdir -p ../build
@@ -107,8 +114,8 @@ jobs:
               bin="${bin}.exe"
             fi
 
-            GOOS="${os}" GOARCH="${arch}" \
-              go build -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")'" \
+            GOOS="${os}" GOARCH="${arch}" CGO_ENABLED=0 \
+              go build -trimpath -buildid= -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")'" \
               -o "${outdir}/${bin}" cmd/main.go
 
             if [ "${os}" = "windows" ]; then
