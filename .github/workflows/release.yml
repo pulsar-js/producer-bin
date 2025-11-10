@@ -128,7 +128,7 @@ jobs:
             ASSET_NAME=$(basename "$file")
             curl -L \
               -X POST \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: token ${{ secrets.GH_ACCESS_TOKEN }}" \
               -H "Content-Type: application/octet-stream" \
               "$(jq -r '.upload_url' ${{ steps.create_release.outputs.id }} | sed -e 's/{?name,label}//')?name=$ASSET_NAME" \
               --data-binary "@$file"
