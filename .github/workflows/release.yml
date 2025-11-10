@@ -68,9 +68,10 @@ jobs:
           go-version: '1.24'
       - name: Extract Manifest
         run: |
-          echo "PKG_NAME=$(jq -r '.name' manifest.json)" >> $GITHUB_ENV
-          echo "PKG_VERSION=$(jq -r '.version' manifest.json)" >> $GITHUB_ENV
-          echo "PKG_DESCRIPTION=$(jq -r '.description' manifest.json)" >> $GITHUB_ENV
+          MANIFEST=src/manifest.json
+          echo "PKG_NAME=$(jq -r '.name' $MANIFEST)" >> $GITHUB_ENV
+          echo "PKG_VERSION=$(jq -r '.version' $MANIFEST)" >> $GITHUB_ENV
+          echo "PKG_DESCRIPTION=$(jq -r '.description' $MANIFEST)" >> $GITHUB_ENV
         shell: bash
       - name: Build
         run: |
@@ -82,8 +83,6 @@ jobs:
             OUTPUT="${OUTPUT}.exe"
           fi
 
-          cd ./src
-
           go build -ldflags "\
             -w -s \
             -X 'main.name=${PKG_NAME}' \
@@ -91,7 +90,7 @@ jobs:
             -X 'main.description=${PKG_DESCRIPTION}' \
             -X 'main.debug=false' \
             -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')' \
-            " -o "../$OUTPUT"
+            " -o "../$OUTPUT" ./src/cmd/main.go
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v4
