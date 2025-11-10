@@ -8,9 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
+    # strategy:
+    #   matrix:
+    #     include:
           # - os: aix
           #   arch: ppc64
           # - os: android
@@ -57,8 +57,8 @@ jobs:
           #   arch: 386
           # - os: windows
           #   arch: arm64
-          - os: windows
-            arch: amd64
+          # - os: windows
+          #   arch: amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,6 +66,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
       - name: Extract Manifest
         run: |
           MANIFEST=src/manifest.json
@@ -73,34 +74,33 @@ jobs:
           echo "PKG_VERSION=$(jq -r '.version' $MANIFEST)" >> $GITHUB_ENV
           echo "PKG_DESCRIPTION=$(jq -r '.description' $MANIFEST)" >> $GITHUB_ENV
         shell: bash
-      - name: Build
+      - name: Cache go-build
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-${{ hashFiles('src/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-build-
+      - name: Build all targets
         run: |
-          export GOOS=${{ matrix.os }}
-          export GOARCH=${{ matrix.arch }}
-
-          OUTPUT="build/pulsar_producer_${{ matrix.os }}_${{ matrix.arch }}"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            OUTPUT="${OUTPUT}.exe"
-          fi
-
-          cd ./src
-
-          go mod tidy
-
-          go build -ldflags "\
-            -w -s \
-            -X 'main.name=${PKG_NAME}' \
-            -X 'main.version=${PKG_VERSION}' \
-            -X 'main.description=${PKG_DESCRIPTION}' \
-            -X 'main.debug=false' \
-            -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')' \
-            " -o "../$OUTPUT" cmd/main.go
-        shell: bash
-      - name: Upload artifact
+          cd src
+          go mod download
+          targets=(
+            "windows amd64"
+            "linux amd64"
+            "linux arm64"
+          )
+          for entry in "${targets[@]}"; do
+            set -- $entry
+            GOOS=$1 GOARCH=$2 \
+              go build -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+              -o "../build/pulsar_producer_${1}_${2}${1==windows && echo .exe}" cmd/main.go
+          done
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: producer_pulsar_${{ matrix.os }}-${{ matrix.arch }}
+          name: pulsar_producer_binaries
           path: build/*
+          retention-days: 7
 
   create-release:
     # This job runs only after ALL build jobs in the matrix are successful
