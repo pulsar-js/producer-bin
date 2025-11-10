@@ -115,7 +115,7 @@ jobs:
             fi
 
             GOOS="${os}" GOARCH="${arch}" CGO_ENABLED=0 \
-              go build -trimpath -buildid= -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")'" \
+              go build -trimpath -ldflags "-w -s -X 'main.name=${PKG_NAME}' -X 'main.version=${PKG_VERSION}' -X 'main.description=${PKG_DESCRIPTION}' -X 'main.debug=false' -X 'main.buildTime=$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")' -buildid=" \
               -o "${outdir}/${bin}" cmd/main.go
 
             if [ "${os}" = "windows" ]; then
