@@ -1,6 +1,6 @@
 {
   "name": "pulsar-publish",
-  "version": "0.0.1-beta.4",
+  "version": "1.0.0",
   "description": "Publish messages to Apache Pulsar.",
   "license": "MIT",
   "author": "coreybutler",
