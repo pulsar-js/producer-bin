@@ -99,10 +99,10 @@ jobs:
             os="$1"
             arch="$2"
 
-            outdir="../build/${os}_${arch}"
+            outdir="../build"
             mkdir -p "${outdir}"
 
-            bin="pulsar_producer"
+            bin="pulsar_producer_${os}_${arch}"
             if [ "${os}" = "windows" ]; then
               bin="${bin}.exe"
             fi
