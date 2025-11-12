@@ -14,9 +14,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         # Fetch all history and tags to compare against
         with:
+          sparse-checkout: |
+            .github/
+            src/
           fetch-depth: 0
 
       - name: Extract version

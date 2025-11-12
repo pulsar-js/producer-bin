@@ -51,6 +51,7 @@ type App struct {
 	ProducerProperty     []string `name:"producer-property" help:"Add a property to the producer in key=value format. Can be specified multiple times." group:"Producer"`
 	ConnectionString     string   `help:"Server and topic to publish to. Example: pulsar://localhost:5678/public/default/test" arg:"" default:"pulsar://localhost:5678/public/default/test" required:"true"`
 	Message              string   `help:"Message to send." arg:"" optional:""`
+	Test                 bool     `name:"test" help:"Test the connection without sending a message." group:"Producer"`
 }
 
 func (c *App) Run(ctx *Context) error {
@@ -87,6 +88,11 @@ func (c *App) Run(ctx *Context) error {
 		os.Exit(1)
 	} else if len(strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")) != 4 {
 		log.Errorf("Connection string (%s) must include (non-)persistent, a tenant, namespace, and topic (e.g. pulsar://host:port/public/default/my-topic)", c.ConnectionString)
+		os.Exit(1)
+	}
+
+	if !c.Test && c.Message == "" {
+		log.Errorln("no message specified to send")
 		os.Exit(1)
 	}
 
@@ -206,6 +212,12 @@ func (c *App) Run(ctx *Context) error {
 		}
 	}
 
+	opTimeout := 5 * time.Second
+	connTimeout := 2 * time.Second
+	if c.Test {
+		opTimeout = 300 * time.Millisecond
+		connTimeout = 300 * time.Millisecond
+	}
 	connstring := fmt.Sprintf("%s://%s:%s", uri.Scheme, uri.Hostname(), port)
 	if auth != nil {
 		if c.MTLSCert != "" && c.CACert != "" {
@@ -214,12 +226,16 @@ func (c *App) Run(ctx *Context) error {
 				Authentication:        auth,
 				TLSTrustCertsFilePath: c.CACert,
 				Logger:                pulsarLogger,
+				OperationTimeout:      opTimeout,
+				ConnectionTimeout:     connTimeout,
 			})
 		} else {
 			client, err = pulsar.NewClient(pulsar.ClientOptions{
-				URL:            connstring,
-				Authentication: auth,
-				Logger:         pulsarLogger,
+				URL:               connstring,
+				Authentication:    auth,
+				Logger:            pulsarLogger,
+				OperationTimeout:  opTimeout,
+				ConnectionTimeout: connTimeout,
 			})
 		}
 
@@ -229,8 +245,10 @@ func (c *App) Run(ctx *Context) error {
 		}).Info("connect")
 	} else {
 		client, err = pulsar.NewClient(pulsar.ClientOptions{
-			URL:    connstring,
-			Logger: pulsarLogger,
+			URL:               connstring,
+			Logger:            pulsarLogger,
+			OperationTimeout:  opTimeout,
+			ConnectionTimeout: connTimeout,
 		})
 		log.WithFields(logrus.Fields{
 			"authenticated":     false,
@@ -238,10 +256,35 @@ func (c *App) Run(ctx *Context) error {
 		}).Info("connect")
 	}
 	if err != nil {
+		if c.Test {
+			log.WithFields(logrus.Fields{
+				"success": false,
+			}).Warn("test")
+			os.Exit(0)
+		}
 		log.Errorf("failed to create client: %v", err)
 		os.Exit(1)
 	}
 	defer client.Close()
+
+	if c.Test {
+		// force a broker RPC instead of assuming success
+		_, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+		defer cancel()
+
+		if _, err := client.TopicPartitions("non-persistent://public/default/test"); err != nil {
+			log.WithFields(logrus.Fields{
+				"success": false,
+				"error":   err,
+			}).Warn("test")
+			client.Close()
+			os.Exit(1)
+		}
+
+		log.WithField("success", true).Warn("test")
+		client.Close()
+		os.Exit(0)
+	}
 
 	// Identify topic
 	topicParts := strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")
