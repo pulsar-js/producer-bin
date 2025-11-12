@@ -86,14 +86,19 @@ func (c *App) Run(ctx *Context) error {
 	} else if uri.Scheme != "pulsar" && uri.Scheme != "pulsar+ssl" {
 		log.Errorf("Unsupported scheme in connection string: %s", uri.Scheme)
 		os.Exit(1)
-	} else if len(strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")) != 4 {
-		log.Errorf("Connection string (%s) must include (non-)persistent, a tenant, namespace, and topic (e.g. pulsar://host:port/public/default/my-topic)", c.ConnectionString)
-		os.Exit(1)
 	}
 
-	if !c.Test && c.Message == "" {
-		log.Errorln("no message specified to send")
-		os.Exit(1)
+	// Ensure tenant/namespace/topic exist unless testing connectivity
+	if !c.Test {
+		if len(strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")) != 4 && !c.Test {
+			log.Errorf("Connection string (%s) must include (non-)persistent, a tenant, namespace, and topic (e.g. pulsar://host:port/public/default/my-topic)", c.ConnectionString)
+			os.Exit(1)
+		}
+
+		if c.Message == "" {
+			log.Errorln("no message specified to send")
+			os.Exit(1)
+		}
 	}
 
 	// Placeholder for auth
